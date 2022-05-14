@@ -1,3 +1,11 @@
+---
+title: "PSTAT 131 HW 5 WRITE UP"
+author: "Katherine Bayt"
+date: '2022-05-14'
+output: html_document
+---
+
+```{r setup, include=FALSE}
 library(ggplot2)
 library(tidyverse)
 library(tidymodels)
@@ -13,17 +21,23 @@ library(klaR)
 pokemon <- read.csv("C:\\Pokemon.csv")
 view(pokemon)
 library(janitor)
-set.seed(48)
+set.seed(4857)
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-# QUESTION 1
-# does not seem to do anything?
+## QUESTION 1
+```{r}
 pokemon_clean <- pokemon %>%
   clean_names()
+```
+The clean_names function mainly effected the names of the variables. For example, Type.1 becomes type_1, Sp..Atk becomes sp_atk. Thus, it appears the clean_names converts the datasets variables to follow normal R conventions for names, inclusing removing all uppercase in the variable names. This appears to be helpful so that (1) we can easily identify a variable name in the code because they now follow normal name conventions, and (2) we dont run into errors with the code by missing an uppercase letter. 
 
-# QUESTION 2
+## QUESTION 2
+```{r}
 pokemon_clean %>%
   ggplot(aes(x=forcats::fct_infreq(type_1))) +
   geom_bar() + 
+  labs(x="type_1") +
   coord_flip()
 # 18 outcomes 
 # smallest: flying, fairy
@@ -36,8 +50,11 @@ pokemon_clean <- pokemon_clean %>%
 # convert type_1 and legendary to factors
 pokemon_clean$type_1 <- factor(pokemon_clean$type_1)
 pokemon_clean$legendary <- factor(pokemon_clean$legendary)
+```
+There are 18 classes of the outcome variable, type_1. The classes Flying and Fairy appear to have the least amount of Pokemon. 
 
-# QUESTION 3
+## QUESTION 3
+```{r, echo=FALSE}
 ## initial split of data
 ## stratify on outcome variable type_1
 pokemon_split <- initial_split(pokemon_clean, prop = 0.7,
@@ -54,21 +71,21 @@ dim(pokemon_test)
 pokemon_folds <- vfold_cv(pokemon_train, v=5, 
                           strata = type_1)
 pokemon_folds
+```
+Using a proportion of 0.7, I have 318 observations in the training set and 140 observations in the testing set. Stratifying on the folds will be useful so that each fold the data is trained with will have an equal distribution of the types of pokemon. For example, the type Psychic has about 50 less observations than the type Water, and our folds will only have about 63 observations so we don't want to end up with a fold that doesn't have any Psychic types in it. Thus, stratifying on type_1 will help train our model better so that it make better predictions with future data. 
 
-# QUESTION 4
-## set up recipe 
+## QUESTION 4
+```{r}
 pokemon_recipe <- recipe(type_1 ~ legendary +
                            generation + sp_atk +
                            attack + speed + defense +
                            hp + sp_def, data = pokemon_train) %>%
   step_dummy(legendary, generation) %>%
   step_normalize(all_predictors())
-summary(pokemon_recipe)  
+```
 
-# QUESTION 5
-## use mutlinom_reg with glment engine to
-## tune and fit an elastic net
-
+## QUESTION 5
+```{r}
 # set up model
 multi_reg <- multinom_reg(penalty = tune(),
                           mixture = tune()) %>%
@@ -79,13 +96,14 @@ multi_wkflow <- workflow() %>%
   add_recipe(pokemon_recipe)
 # regular grid for penalty and mixture 
 # 10 levels each 
-pokemon_grid <- grid_regular(penalty(range=c(-5,5)),
-                             mixture(range(c(0,1))),
+pokemon_grid <- grid_regular(penalty(range=c(-5,5)),                           mixture(range(c(0,1))),
                              levels = 10)
 pokemon_grid
-?grid_regular
+```
+We have 100 different penalty and misture combinations that will be fit with 5 different folds. Thus we will be fitting 500 models total. 
 
-# QUESTION 6
+## QUESTION 6
+```{r}
 ## fit the models to your folded data via tune_grid()
 tune_res <- tune_grid(
   multi_wkflow,
@@ -93,32 +111,50 @@ tune_res <- tune_grid(
   grid = pokemon_grid)
 # plot the results via autoplot()
 autoplot(tune_res)
+```
+It appears that smaller values of accuracy and mixture produce better accuracy. Similarily, it appears that smaller values of accuracy and mixture produce btter ROC AUC values. 
 
-# QUESTION 7
-# choose model with optimal roc_auc via select_best()
+## QUESTION 7
+```{r}
 best_model <- select_best(tune_res,
                           metric = "roc_auc")
 best_model
-
 # fit the model to the training set 
 # finalize_workflow(), fit(), and augment()
 final_model <- finalize_workflow(multi_wkflow, best_model)
-final_model
 final_model_fit <- fit(final_model, data=pokemon_train)
+augment(final_model_fit, new_data = pokemon_test) %>%
+  roc_auc(truth = type_1, estimate = .pred_Fire, 
+            .pred_Bug, .pred_Water, .pred_Grass,
+          .pred_Normal, .pred_Psychic)
+
+```
+The model does not appear to predict type_1 very well. We got a 39% estimation rate. 
 
 ## QUESTION 8
+```{r}
 # get overall roc_auc value
 augment(final_model_fit, new_data = pokemon_test) %>%
   roc_auc(truth = type_1, estimate = .pred_Fire, 
           .pred_Bug, .pred_Water, .pred_Grass,
           .pred_Normal, .pred_Psychic)
+```
+From the value of our testing roc_auc, we can see that the model has meaningful information, but it is being applied incorrectly due to the roc_auc < 0.5.
+```{r}
 # plots of different roc curves per level
 augment(final_model_fit, new_data = pokemon_test) %>%
   roc_curve(type_1, estimate = c(.pred_Fire, 
             .pred_Bug, .pred_Water, .pred_Grass,
             .pred_Normal, .pred_Psychic)) %>%
   autoplot()
+```
+The pokemon type that it is best at predicting is grass, and the pokemon type that it is worst at predicting is Psychic. It is most likely worse at predicting Psychic because it has the smallest amount of Pokemon in the data set with that primary type. 
+
+```{r}
 # confusion matrix
 augment(final_model_fit, new_data = pokemon_test) %>%
   conf_mat(type_1, estimate = .pred_class) %>%
-  autoplot(type="heatmap")
+  autoplot(type="heatmap") 
+```
+Why is this inverted?
+
