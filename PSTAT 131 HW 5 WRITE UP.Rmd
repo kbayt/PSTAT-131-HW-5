@@ -19,7 +19,6 @@ library(discrim)
 library(poissonreg)
 library(klaR)
 pokemon <- read.csv("C:\\Pokemon.csv")
-view(pokemon)
 library(janitor)
 set.seed(4857)
 knitr::opts_chunk$set(echo = TRUE)
@@ -30,7 +29,7 @@ knitr::opts_chunk$set(echo = TRUE)
 pokemon_clean <- pokemon %>%
   clean_names()
 ```
-The clean_names function mainly effected the names of the variables. For example, Type.1 becomes type_1, Sp..Atk becomes sp_atk. Thus, it appears the clean_names converts the datasets variables to follow normal R conventions for names, inclusing removing all uppercase in the variable names. This appears to be helpful so that (1) we can easily identify a variable name in the code because they now follow normal name conventions, and (2) we dont run into errors with the code by missing an uppercase letter. 
+The clean_names function mainly effected the names of the variables. For example, Type.1 becomes type_1, Sp..Atk becomes sp_atk. Thus, it appears the clean_names converts the datasets variables to follow normal R conventions for names, including removing all uppercase in the variable names. This appears to be helpful so that (1) we can easily identify a variable name in the code because they now follow normal name conventions, and (2) we dont run into errors with the code by missing an uppercase letter. 
 
 ## QUESTION 2
 ```{r}
@@ -50,6 +49,7 @@ pokemon_clean <- pokemon_clean %>%
 # convert type_1 and legendary to factors
 pokemon_clean$type_1 <- factor(pokemon_clean$type_1)
 pokemon_clean$legendary <- factor(pokemon_clean$legendary)
+view(pokemon_clean)
 ```
 There are 18 classes of the outcome variable, type_1. The classes Flying and Fairy appear to have the least amount of Pokemon. 
 
@@ -120,6 +120,11 @@ best_model <- select_best(tune_res,
                           metric = "roc_auc")
 best_model
 # fit the model to the training set 
+# fit the model to the training set 
+# finalize_workflow(), fit(), and augment()
+final_model <- finalize_workflow(multi_wkflow, best_model)
+final_model
+final_model_fit <- fit(final_model, data=pokemon_train)
 
 ```
 The model does not appear to predict type_1 very well. We got a 39% estimation rate. 
@@ -132,7 +137,7 @@ augment(final_model_fit, new_data = pokemon_test) %>%
                                        .pred_Fire, .pred_Grass, .pred_Normal,
                                        .pred_Psychic, .pred_Water))
 ```
-From the value of our testing roc_auc, we can see that out model does reasonably well, with an roc auc values of 0.69. 
+From the value of our testing roc_auc, we can see that out model does reasonably well, with an roc auc value of 0.71. 
 ```{r}
 # plots of different roc curves per level
 augment(final_model_fit, new_data = pokemon_test) %>%
