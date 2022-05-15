@@ -120,13 +120,6 @@ best_model <- select_best(tune_res,
                           metric = "roc_auc")
 best_model
 # fit the model to the training set 
-# finalize_workflow(), fit(), and augment()
-final_model <- finalize_workflow(multi_wkflow, best_model)
-final_model_fit <- fit(final_model, data=pokemon_train)
-augment(final_model_fit, new_data = pokemon_test) %>%
-  roc_auc(truth = type_1, estimate = .pred_Fire, 
-            .pred_Bug, .pred_Water, .pred_Grass,
-          .pred_Normal, .pred_Psychic)
 
 ```
 The model does not appear to predict type_1 very well. We got a 39% estimation rate. 
@@ -135,20 +128,20 @@ The model does not appear to predict type_1 very well. We got a 39% estimation r
 ```{r}
 # get overall roc_auc value
 augment(final_model_fit, new_data = pokemon_test) %>%
-  roc_auc(truth = type_1, estimate = .pred_Fire, 
-          .pred_Bug, .pred_Water, .pred_Grass,
-          .pred_Normal, .pred_Psychic)
+  roc_auc(truth = type_1, estimate = c(.pred_Bug, 
+                                       .pred_Fire, .pred_Grass, .pred_Normal,
+                                       .pred_Psychic, .pred_Water))
 ```
-From the value of our testing roc_auc, we can see that the model has meaningful information, but it is being applied incorrectly due to the roc_auc < 0.5.
+From the value of our testing roc_auc, we can see that out model does reasonably well, with an roc auc values of 0.69. 
 ```{r}
 # plots of different roc curves per level
 augment(final_model_fit, new_data = pokemon_test) %>%
-  roc_curve(type_1, estimate = c(.pred_Fire, 
-            .pred_Bug, .pred_Water, .pred_Grass,
-            .pred_Normal, .pred_Psychic)) %>%
+  roc_curve(type_1, estimate = c(.pred_Bug, 
+            .pred_Fire, .pred_Grass, .pred_Normal,
+            .pred_Psychic, .pred_Water)) %>%
   autoplot()
 ```
-The pokemon type that it is best at predicting is grass, and the pokemon type that it is worst at predicting is Psychic. It is most likely worse at predicting Psychic because it has the smallest amount of Pokemon in the data set with that primary type. 
+The Pokemon type that it is best at predicting is Normal, and the Pokemon type that it is worst at predicting is Water. It is most likely better at predicting Normal because, according to the confusion matrix below, it only has a small number of predictions that are normal with the true values being not normal. It also has a high number of prediction of Normal where Normal is the true value. Water is the worst at predicting because it tends to predict high numbers of other types that are not water as being water. 
 
 ```{r}
 # confusion matrix
@@ -156,5 +149,5 @@ augment(final_model_fit, new_data = pokemon_test) %>%
   conf_mat(type_1, estimate = .pred_class) %>%
   autoplot(type="heatmap") 
 ```
-Why is this inverted?
+
 

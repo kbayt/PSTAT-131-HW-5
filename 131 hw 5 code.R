@@ -13,7 +13,7 @@ library(klaR)
 pokemon <- read.csv("C:\\Pokemon.csv")
 view(pokemon)
 library(janitor)
-set.seed(48)
+set.seed(4857)
 
 # QUESTION 1
 # does not seem to do anything?
@@ -109,16 +109,18 @@ final_model_fit <- fit(final_model, data=pokemon_train)
 ## QUESTION 8
 # get overall roc_auc value
 augment(final_model_fit, new_data = pokemon_test) %>%
-  roc_auc(truth = type_1, estimate = .pred_Fire, 
-          .pred_Bug, .pred_Water, .pred_Grass,
-          .pred_Normal, .pred_Psychic)
+  roc_auc(truth = type_1, estimate = c(.pred_Bug, 
+                                       .pred_Fire, .pred_Grass, .pred_Normal,
+                                       .pred_Psychic, .pred_Water))
 # plots of different roc curves per level
 augment(final_model_fit, new_data = pokemon_test) %>%
-  roc_curve(type_1, estimate = c(.pred_Fire, 
-            .pred_Bug, .pred_Water, .pred_Grass,
-            .pred_Normal, .pred_Psychic)) %>%
+  roc_curve(type_1, estimate = c(.pred_Bug, 
+            .pred_Fire, .pred_Grass, .pred_Normal,
+            .pred_Psychic, .pred_Water)) %>%
   autoplot()
 # confusion matrix
 augment(final_model_fit, new_data = pokemon_test) %>%
   conf_mat(type_1, estimate = .pred_class) %>%
   autoplot(type="heatmap")
+
+
